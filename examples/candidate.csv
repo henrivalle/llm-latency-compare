@@ -1,0 +1,4 @@
+request_id,status,duration_ms,ttft_ms
+gamma,ok,260,80
+alpha,ok,140,
+beta,error,560,

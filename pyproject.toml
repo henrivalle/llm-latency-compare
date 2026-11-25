@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-latency-compare"
+version = "0.1.0"
+description = "Compare matched LLM request timings and gate regressions in CI."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/henrivalle/llm-latency-compare"
+Issues = "https://github.com/henrivalle/llm-latency-compare/issues"
+
+[project.scripts]
+llm-latency-compare = "llm_latency_compare:main"
+
+[tool.setuptools]
+py-modules = ["llm_latency_compare"]
