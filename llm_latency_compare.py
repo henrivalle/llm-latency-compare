@@ -22,6 +22,13 @@ def nonnegative(value):
     return number
 
 
+def nonnegative_int(value):
+    number = int(value)
+    if number < 0:
+        raise argparse.ArgumentTypeError("expected a nonnegative integer")
+    return number
+
+
 def read_samples(path):
     samples = {}
     columns = {"request_id", "status", "duration_ms", "ttft_ms"}
@@ -76,8 +83,11 @@ def compare(baseline, candidate):
             if old.ttft_ms is not None and new.ttft_ms is not None]
     baseline_errors = sum(not sample.success for sample in baseline.values())
     candidate_errors = sum(not sample.success for sample in candidate.values())
-    return {"requests": len(baseline), "paired_successes": len(pairs), "paired_ttft": len(ttft),
+    paired_successes = len(pairs)
+    return {"requests": len(baseline), "paired_successes": paired_successes, "paired_ttft": len(ttft),
             "baseline_errors": baseline_errors, "candidate_errors": candidate_errors,
+            "newly_failed_requests": len(baseline) - baseline_errors - paired_successes,
+            "recovered_requests": len(candidate) - candidate_errors - paired_successes,
             "error_rate_change_pp": (candidate_errors - baseline_errors) * 100 / len(baseline),
             "duration_ms": timing_summary(durations), "ttft_ms": timing_summary(ttft)}
 
@@ -92,6 +102,10 @@ def main(argv=None):
     parser.add_argument("candidate", type=Path)
     parser.add_argument("--max-p95-regression-ms", type=nonnegative)
     parser.add_argument("--max-error-increase-pp", type=nonnegative)
+    parser.add_argument(
+        "--max-newly-failed-requests", type=nonnegative_int,
+        help="limit requests that succeeded in the baseline and failed in the candidate",
+    )
     args = parser.parse_args(argv)
     try:
         baseline = read_samples(args.baseline)
@@ -112,6 +126,8 @@ def main(argv=None):
             failures.append("p95_regression")
     if args.max_error_increase_pp is not None and exceeds(report["error_rate_change_pp"], args.max_error_increase_pp):
         failures.append("error_rate_increase")
+    if args.max_newly_failed_requests is not None and report["newly_failed_requests"] > args.max_newly_failed_requests:
+        failures.append("newly_failed_requests")
     report["gate_failures"] = failures
     print(json.dumps(report, indent=2))
     return int(bool(failures))
