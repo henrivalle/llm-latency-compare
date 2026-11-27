@@ -46,6 +46,26 @@ class LatencyTests(unittest.TestCase):
         self.assertEqual(code, 1, error)
         self.assertEqual(json.loads(output)["gate_failures"], ["error_rate_increase"])
 
+    def test_new_failures_are_reported_even_when_the_error_rate_is_unchanged(self):
+        before = "a,ok,55,\nb,error,80,\nc,ok,90,\n"
+        after = "c,ok,95,\nb,ok,75,\na,error,60,\n"
+        flags = ("--max-error-increase-pp", "0", "--max-newly-failed-requests")
+        code, output, error = self.run_compare(before, after, *flags, "0")
+        self.assertEqual(code, 1, error)
+        report = json.loads(output)
+        self.assertEqual(report["error_rate_change_pp"], 0)
+        self.assertEqual(report["newly_failed_requests"], 1)
+        self.assertEqual(report["recovered_requests"], 1)
+        self.assertEqual(report["gate_failures"], ["newly_failed_requests"])
+        self.assertEqual(self.run_compare(before, after, *flags, "1")[0], 0)
+        self.assertEqual(self.run_compare(before, after)[0], 0)
+
+    def test_new_failure_limit_rejects_negative_values(self):
+        data = "a,ok,55,\n"
+        code, _, error = self.run_compare(data, data, "--max-newly-failed-requests", "-1")
+        self.assertEqual(code, 2)
+        self.assertIn("nonnegative integer", error)
+
     def test_mismatched_request_ids_and_invalid_timings_fail(self):
         for bad in ("b,ok,10,\n", "a,ok,10,12\n", "a,ok,inf,\n", "a,ok,10\n", "a,error,10,3\n"):
             self.assertEqual(self.run_compare("a,ok,10,\n", bad)[0], 2)
